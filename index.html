@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0e1c">
+<title>Rhyme Match</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Titan+One&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-check-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-database-compat.js"></script>
+  <script type="module" crossorigin src="./assets/index-CcAAhtbp.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DyLs_hVt.css">
+</head>
+<body>
+
+<a class="skip-link" href="#gameMain">Skip to game</a>
+
+<div class="toast-stack" id="toastStack" aria-live="polite"></div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal-box">
+    <h3 id="modalTitle">Notice</h3>
+    <p id="modalMessage">Message</p>
+    <div class="btn-row"><button id="modalConfirmBtn">OK</button></div>
+  </div>
+</div>
+
+<div class="sheet-backdrop" id="sheetBackdrop"></div>
+<div class="bottom-sheet" id="bottomSheet">
+  <div class="sheet-handle"></div>
+</div>
+<button class="fab-scoreboard" id="fabScoreboard">🏆 Scores</button>
+
+<div class="app-wrapper">
+  <div class="container" id="gameMain" tabindex="-1">
+
+    <div class="brand" id="brandHeader">
+      <h1 class="brand-title">Rhyme Match</h1>
+      <p class="brand-tagline">Secretly rhyme. Publicly reveal. See who's on your wavelength.</p>
+      <div class="confetti-decor" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    </div>
+
+    <div id="statsHeader" class="header-banner" style="display:none;">
+      <div class="stat">Round<span id="roundDisplay" class="stat-val">1</span></div>
+      <span class="mode-pill" id="modePill">Classic Rhyme</span>
+      <div class="stat">Score<span id="scoreDisplay" class="stat-val">0</span></div>
+      <button class="sound-toggle" id="soundToggleBtn" title="Toggle sound" aria-label="Toggle sound">🔊</button>
+    </div>
+
+    <p class="connection-status" id="connectionStatus" role="status" aria-live="polite">Not connected — host or join to begin</p>
+    <section class="connection-help" id="connectionHelp" aria-labelledby="connectionHelpTitle" hidden>
+      <h2 id="connectionHelpTitle">Connection help</h2>
+      <ol id="connectionHelpSteps"></ol>
+      <div class="btn-row"><button class="btn-ghost btn-sm" id="btnRetryConnection" type="button">Retry connection</button></div>
+    </section>
+
+  <div class="phase-tracker" id="phaseTracker" style="display:none;">
+      <div class="phase-dot" data-phase="target"></div><div class="phase-track-line"></div>
+      <div class="phase-dot" data-phase="rhyme"></div><div class="phase-track-line"></div>
+      <div class="phase-dot" data-phase="judge"></div><div class="phase-track-line"></div>
+      <div class="phase-dot" data-phase="results"></div>
+    </div>
+    <p class="round-objective" id="roundObjective" role="status" aria-live="polite" hidden></p>
+
+    <!-- 1. MAIN MENU -->
+    <div id="menuView" class="view active">
+      <div class="menu-intro">
+        <h2>Find your rhyme twin.</h2>
+        <p>One word. A few seconds. A surprising match with someone in your group.</p>
+        <div class="menu-steps">
+          <div class="menu-step"><span>1</span> Share the room link</div>
+          <div class="menu-step"><span>2</span> Write a secret rhyme</div>
+          <div class="menu-step"><span>3</span> Reveal your matches</div>
+        </div>
+      </div>
+      <div class="menu-form">
+      <label class="field-label" for="inputPlayerName">Your nickname</label>
+      <input type="text" id="inputPlayerName" name="nickname" maxlength="15" autocomplete="nickname" aria-describedby="nicknameFeedback" placeholder="e.g. RhymeStar" required>
+      <p class="field-feedback" id="nicknameFeedback" aria-live="polite">1–15 characters. This name appears to other players.</p>
+
+      <div class="tab-row" style="margin-top:16px;">
+        <button type="button" class="tab-btn active" id="tabHost" aria-pressed="true">Host a game</button>
+        <button type="button" class="tab-btn" id="tabJoin" aria-pressed="false">Join a game</button>
+      </div>
+
+      <div class="menu-panel active" id="panelHost">
+        <p style="text-align:center;">Start a room and share the code with your group.</p>
+        <button class="btn-primary btn-block" id="btnHostInit">Host New Game</button>
+      </div>
+
+      <div class="menu-panel" id="panelJoin">
+        <label class="field-label" for="inputJoinId">Host's room code</label>
+        <input type="text" id="inputJoinId" name="room-code" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-describedby="roomCodeFeedback" placeholder="e.g. ABCD2345 or paste a link">
+        <p class="field-feedback" id="roomCodeFeedback" aria-live="polite">Paste a room code or the full join link.</p>
+        <button class="btn-primary btn-block" id="btnJoinInit" style="margin-top:10px;">Join Game</button>
+      </div>
+      </div>
+    </div>
+
+    <!-- 2. LOBBY -->
+    <div id="lobbyView" class="view">
+      <section class="lobby-game" aria-labelledby="lobbyTitle">
+        <div class="lobby-game-head">
+          <div>
+            <h1 id="lobbyTitle">Rhyme Match</h1>
+            <p>Your next round, at a glance.</p>
+            <span class="lobby-mode" id="lobbyModeLabel">🎤 Classic Rhyme</span>
+          </div>
+          <button type="button" class="btn-ghost btn-sm" data-open-tutorial>▶ How to Play</button>
+        </div>
+        <section class="game-briefing" id="gameBriefing" aria-label="Game briefing" aria-live="polite">
+          <div class="briefing-meta"><span id="briefingTimer">⏱️ 20 seconds · default</span><span id="briefingModifier">No modifier</span><span id="briefingGameEnd">🏁 10 rounds</span></div>
+          <p class="briefing-objective" id="briefingObjective">Find a valid rhyme that one other player chooses.</p>
+          <p id="briefingScoring">Two-player matches earn +3 each; larger groups earn +1.</p>
+          <p id="briefingSpecial">The host checks rhymes before points are awarded.</p>
+        </section>
+        <div id="hostModeSection" style="display:none;">
+          <details class="lobby-settings" id="gameSettings">
+            <summary>⚙ Game Settings</summary>
+            <p class="lobby-settings-note">Only the host can change these. Choose a mode before starting.</p>
+            <div id="hostGameEndSettings"></div>
+            <div class="lobby-zone-title"><h3>Game Mode</h3><button type="button" class="btn-ghost btn-sm" data-open-tutorial>How to Play</button></div>
+            <div class="mode-grid" id="modeGrid"></div>
+            <details class="lobby-advanced"><summary>Advanced Settings</summary><div id="lobbyAdvancedSettings"></div></details>
+          </details>
+        </div>
+        <div id="clientModeSection" class="lobby-settings" style="display:none;">
+          <p>✓ Briefing updates live as the host chooses the next round.</p>
+          <p>Current mode: <strong id="clientModeLabel">Classic Rhyme</strong></p>
+        </div>
+      </section>
+      <div class="lobby-layout">
+        <section class="lobby-zone" aria-labelledby="playersTitle">
+          <div class="lobby-zone-title"><h2 id="playersTitle">Players</h2><p id="playerCount" aria-live="polite">1 / 8</p></div>
+          <div class="roster" id="playerRoster"></div>
+        </section>
+        <section class="lobby-zone" aria-labelledby="inviteTitle">
+          <h2 id="inviteTitle">Invite Players</h2>
+          <div class="room-code-card" id="roomCodeSection">
+            <div class="room-qr" id="roomQrPanel" hidden>
+              <p class="room-qr-label">Scan to Join</p>
+              <div class="room-qr-code" id="roomQrCode"></div>
+            </div>
+            <p class="room-code-caption">ROOM CODE</p>
+            <div class="room-code-value" translate="no"><button id="roomCodeDisplay" type="button" title="Copy room code" aria-label="Copy room code">-</button></div>
+            <p class="room-copy-feedback" id="roomCodeCopyFeedback" role="status" aria-live="polite">Tap code to copy</p>
+            <div class="copy-row"><button class="btn-ghost btn-sm" id="btnCopyLink">🔗 Copy Join Link</button></div>
+          </div>
+        </section>
+      </div>
+      <div class="lobby-actions">
+        <p id="lobbyStatusMessage" role="status" aria-live="polite">🔒 Waiting for 1 more player</p>
+        <div id="hostLobbyControls" style="display:none;"><button id="btnStartRound" class="btn-primary" disabled>Start Game</button></div>
+        <button id="btnLeaveLobby" type="button" class="btn-ghost">Leave Lobby</button>
+        <p id="lobbyActionHint">Invite someone using the QR code above.</p>
+      </div>
+    </div>
+
+    <dialog id="howToPlayDialog" class="tutorial-dialog" aria-labelledby="howToPlayTitle">
+      <div class="tutorial-head"><h2 id="howToPlayTitle">How to Play · Classic Rhyme</h2><button type="button" class="btn-ghost btn-sm" id="btnCloseTutorial" aria-label="Close tutorial">✕</button></div>
+      <p class="tutorial-progress" id="tutorialProgress" aria-live="polite">1 / 5</p>
+      <section class="tutorial-step" data-tutorial-step="0"><div class="tutorial-visual"><span class="stage-eyebrow">TARGET WORD</span><strong class="tutorial-target">MOON</strong></div><p>Think of one word that rhymes with the target.</p></section>
+      <section class="tutorial-step" data-tutorial-step="1" hidden><div class="tutorial-visual"><div class="tutorial-answers"><span class="tutorial-answer">● TUNE</span><span class="tutorial-answer">● SPOON</span><span class="tutorial-answer">● TUNE</span><span class="tutorial-answer">● JUNE</span></div></div><p>Everyone writes their own answer at the same time.</p></section>
+      <section class="tutorial-step" data-tutorial-step="2" hidden><div class="tutorial-visual"><div class="tutorial-answers"><span class="tutorial-answer">🔒 Locked</span><span class="tutorial-answer">🔒 Locked</span><span class="tutorial-answer">🔒 Locked</span><span class="tutorial-answer">🔒 Locked</span></div></div><p>Nobody sees another player's answer until everyone locks in or the timer ends.</p></section>
+      <section class="tutorial-step" data-tutorial-step="3" hidden><div class="tutorial-visual"><div class="tutorial-answers"><span class="tutorial-answer matched">TUNE</span><span class="tutorial-answer matched">TUNE</span><span class="tutorial-answer">SPOON</span><span class="tutorial-answer">JUNE</span></div></div><p id="tutorialReveal">Answers appear together. The host checks that they rhyme, then matching words score.</p></section>
+      <section class="tutorial-step" data-tutorial-step="4" hidden><div class="tutorial-visual"><strong class="tutorial-target" id="tutorialScore">TUNE +3</strong><span id="tutorialScoreDetail">Two players matched · Classic Rhyme</span><strong id="tutorialNextRound">→ Next Round</strong></div><p id="tutorialFinish">That's it! Think fast. Find your rhyme twin.</p></section>
+      <div class="tutorial-actions"><button type="button" class="btn-ghost" id="btnTutorialBack">Back</button><button type="button" class="btn-primary" id="btnTutorialNext">Next</button></div>
+    </dialog>
+    </div>
+
+    <!-- 3. WORD TARGET SETUP (HOST ONLY) -->
+    <div id="targetSetupView" class="view">
+      <h2 style="text-align:center;">Pick the target word</h2>
+      <p style="text-align:center;">Everyone will have to think of a word that rhymes with it.</p>
+      <details class="round-mode-picker" id="roundModePicker"><summary>Mode for this round: <strong id="roundModeLabel">Classic Rhyme</strong></summary><div class="mode-grid" id="roundModeGrid"></div><div id="roundAdvancedSettings"></div></details>
+
+      <div class="word-slot" id="wordSlotDisplay">Tap "Random Word" to draw one</div>
+      <button class="btn-block" id="btnRandomWord">🎲 Random Word</button>
+
+      <div class="divider"></div>
+      <label class="field-label" for="inputCustomTarget">...or type your own</label>
+      <input type="text" id="inputCustomTarget" maxlength="64" placeholder="Enter a target word">
+      <button class="btn-primary btn-block" id="btnConfirmTarget" style="margin-top:12px;">Start Timer</button>
+    </div>
+
+    <!-- 4. SUBMIT RHYME -->
+    <div id="twistRevealView" class="view">
+      <div class="twist-reveal-card">
+        <span class="stage-eyebrow">🎭 RHYME TWIST · ROUND <span id="twistRound">1</span></span>
+        <h2 id="twistChallenge">A surprise challenge is coming…</h2>
+        <p>Target: <strong id="twistTarget">---</strong></p>
+        <p>Find a rhyme that also fits the challenge. The timer starts when the host is ready.</p>
+        <button class="btn-primary btn-block" id="btnBeginTwist">Start Timer</button>
+        <p id="twistGuestWait" role="status" aria-live="polite">Waiting for host to start the timer…</p>
+      </div>
+    </div>
+    <div id="submitRhymeView" class="view">
+      <div class="stage-card submit-stage" id="submitStageCard">
+        <div class="submit-target"><span class="stage-eyebrow">TARGET WORD</span><div id="displayTargetWord" class="target-word">---</div></div>
+        <div class="timer-ring-wrap">
+          <svg class="timer-ring" viewBox="0 0 120 120">
+            <circle class="timer-ring-bg" cx="60" cy="60" r="52"></circle>
+            <circle class="timer-ring-fg" id="timerRingFg" cx="60" cy="60" r="52"></circle>
+          </svg>
+          <div class="timer-ring-label" role="timer" aria-label="Seconds remaining"><span id="timerDisplay">15</span><small aria-hidden="true">s</small></div>
+        </div>
+      </div>
+
+      <form id="rhymeForm">
+      <div class="input-group">
+        <label class="visually-hidden" for="inputRhyme">Your rhyming word</label>
+        <input type="password" id="inputRhyme" maxlength="64" placeholder="Your rhyming word" autocomplete="off">
+        <button type="button" id="btnToggleVisibility" class="toggle-visibility">Show</button>
+      </div>
+      <div id="answerRule" class="answer-rule" role="status" aria-live="polite" hidden></div>
+      <div id="answerPrediction" class="answer-prediction" hidden>
+        <label for="predictionPick">🔮 Who will match your rhyme most over this five-round run?</label>
+        <select id="predictionPick"><option value="">Skip prediction · no points gained or lost</option></select>
+        <small id="predictionPayoff"></small>
+      </div>
+
+      <button class="btn-primary btn-block" id="btnSubmitRhyme" disabled>Lock In Rhyme</button>
+      </form>
+      <p id="readyStatus" class="ready-status" role="status" aria-live="polite">0 / 0 players ready</p>
+      <p id="rhymeWaitMsg" style="display:none;text-align:center;margin-top:10px;">Locked in! Waiting for everyone else...</p>
+    </div>
+
+    <!-- 4b. SPECTATOR (eliminated players, Sudden Death mode) -->
+    <div id="waitingView" class="view">
+      <div class="spectator-card">
+        <span class="emoji" aria-hidden="true">⏳</span>
+        <h2>You're in the room</h2>
+        <p>The current round is underway. You'll play when the host starts the next round.</p>
+        <p id="waitingRoomStatus" role="status" aria-live="polite">Waiting with the group…</p>
+      </div>
+    </div>
+
+    <div id="spectatorView" class="view">
+      <div class="spectator-card">
+        <span class="emoji">👀</span>
+        <h2>You're out for this game</h2>
+        <p>Watch the live target, judging and results without submitting or scoring.</p>
+        <p style="color:var(--spotlight);font-weight:700;" id="spectatorTargetWord">---</p>
+        <button type="button" class="btn-ghost" id="btnSpectatorExit">Exit Game</button>
+      </div>
+    </div>
+
+    <!-- 5. JUDGING PHASE -->
+    <div id="judgingView" class="view">
+      <h2 style="text-align:center;">Judge the Rhymes</h2>
+      <p id="judgeInstructions" style="text-align:center;">Review each word. Tap to mark it invalid if it doesn't actually rhyme.</p>
+
+      <div class="stage-card" style="padding:16px 16px 14px;">
+        <span class="stage-eyebrow">TARGET WORD</span>
+        <div id="judgeTargetWord" class="target-word">---</div>
+      </div>
+
+      <div id="judgeSubmissionList"></div>
+
+      <div id="hostJudgeControls" style="display:none; margin-top:14px; text-align:center;">
+        <button class="btn-success" id="btnFinalizeScores">Finalize & Award Points</button>
+      </div>
+      <p id="clientJudgeWaitMsg" style="display:none;text-align:center;">The host is verifying rhymes...</p>
+    </div>
+
+    <!-- 6. RESULTS -->
+    <div id="resultsView" class="view">
+      <h2 style="text-align:center;">Round Results</h2>
+      <div id="resultsContent"></div>
+      <div id="eliminatedChoices" class="eliminated-choices" hidden>
+        <p>You're out of play. Stay to watch the live game or leave the room.</p>
+        <button type="button" class="btn-primary" id="btnChooseSpectate">👀 Spectate</button>
+        <button type="button" class="btn-ghost" id="btnChooseExit">Exit Game</button>
+      </div>
+
+      <div class="btn-row" style="margin-top:20px;">
+        <button class="btn-primary" id="btnNextRound" style="display:none;">⚡ Quick Next Round</button>
+        <button class="btn-ghost" id="btnChooseTarget" style="display:none;">Choose Word / Mode</button>
+        <button class="btn-success" id="btnRematch" style="display:none;">Rematch</button>
+        <button class="btn-ghost" id="btnReturnLobby" style="display:none;">Return to Lobby</button>
+      </div>
+      <p id="resultsWaiting" class="ready-status" role="status" hidden>Waiting for host to continue…</p>
+    </div>
+  </div>
+
+  <!-- DESKTOP SIDEBAR SCOREBOARD -->
+  <div id="sidebarView" class="sidebar">
+    <div id="scoreboardContent" class="scoreboard-content">
+      <h3>🏆 Scoreboard</h3>
+      <div id="scoreboardPodium"></div>
+      <ul class="score-list" id="scoreboardList"></ul>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
